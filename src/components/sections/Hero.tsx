@@ -1,8 +1,11 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="pt-32 pb-20 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none" />
@@ -20,11 +23,20 @@ const Hero = () => {
               Submit cases, track orders, and access expert resources—all in one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="text-lg px-8">
+              <Button 
+                size="lg" 
+                className="text-lg px-8"
+                onClick={() => navigate("/auth")}
+              >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="text-lg px-8"
+                onClick={() => navigate("/auth")}
+              >
                 Watch Demo
               </Button>
             </div>

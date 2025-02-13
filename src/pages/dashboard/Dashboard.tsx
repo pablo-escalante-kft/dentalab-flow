@@ -1,8 +1,11 @@
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FileUp, Plus, Clock } from "lucide-react";
+import NewOrderModal from "@/components/modals/NewOrderModal";
+import UploadScanModal from "@/components/modals/UploadScanModal";
+import ChatBubble from "@/components/chat/ChatBubble";
 
 const Dashboard = () => {
   return (
@@ -10,14 +13,8 @@ const Dashboard = () => {
       <div className="space-y-8">
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button className="flex items-center gap-2 h-auto py-4" size="lg">
-            <Plus className="h-5 w-5" />
-            New Order
-          </Button>
-          <Button variant="secondary" className="flex items-center gap-2 h-auto py-4" size="lg">
-            <FileUp className="h-5 w-5" />
-            Upload Scan
-          </Button>
+          <NewOrderModal />
+          <UploadScanModal />
           <Button variant="outline" className="flex items-center gap-2 h-auto py-4" size="lg">
             <Clock className="h-5 w-5" />
             View Active Orders
@@ -86,6 +83,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Chat Bubble */}
+        <ChatBubble />
       </div>
     </DashboardLayout>
   );
