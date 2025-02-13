@@ -9,7 +9,155 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      orders: {
+        Row: {
+          created_at: string
+          dentist_id: string
+          details: Json | null
+          due_date: string | null
+          id: string
+          patient_id: string
+          status: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          dentist_id: string
+          details?: Json | null
+          due_date?: string | null
+          id?: string
+          patient_id: string
+          status?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          dentist_id?: string
+          details?: Json | null
+          due_date?: string | null
+          id?: string
+          patient_id?: string
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_dentist_id_fkey"
+            columns: ["dentist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          dentist_id: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          dentist_id: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          dentist_id?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_dentist_id_fkey"
+            columns: ["dentist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          practice_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          practice_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          practice_name?: string | null
+        }
+        Relationships: []
+      }
+      scans: {
+        Row: {
+          dentist_id: string
+          file_path: string
+          id: string
+          order_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          dentist_id: string
+          file_path: string
+          id?: string
+          order_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          dentist_id?: string
+          file_path?: string
+          id?: string
+          order_id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scans_dentist_id_fkey"
+            columns: ["dentist_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scans_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
