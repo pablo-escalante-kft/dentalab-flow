@@ -65,7 +65,7 @@ const Auth = () => {
             ? "Please check your email to confirm your account"
             : "You have been successfully logged in",
         });
-        navigate("/");
+        navigate("/dashboard"); // Changed from "/" to "/dashboard"
       }
     } catch (error) {
       toast({
