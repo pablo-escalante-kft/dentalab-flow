@@ -6,8 +6,29 @@ import { Button } from "@/components/ui/button";
 import NewOrderModal from "@/components/modals/NewOrderModal";
 import UploadScanModal from "@/components/modals/UploadScanModal";
 import ChatBubble from "@/components/chat/ChatBubble";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
+  const { data: orders } = useQuery({
+    queryKey: ["orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          patients (
+            first_name,
+            last_name
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -39,17 +60,25 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b">
-                    <td className="px-6 py-4">#001</td>
-                    <td className="px-6 py-4">Crown</td>
-                    <td className="px-6 py-4">John Doe</td>
-                    <td className="px-6 py-4">
-                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        In Progress
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">2024-03-20</td>
-                  </tr>
+                  {orders?.map((order) => (
+                    <tr key={order.id} className="border-b">
+                      <td className="px-6 py-4">#{order.id.slice(0, 8)}</td>
+                      <td className="px-6 py-4">{order.type}</td>
+                      <td className="px-6 py-4">
+                        {order.patients.first_name} {order.patients.last_name}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {order.due_date
+                          ? new Date(order.due_date).toLocaleDateString()
+                          : "Not set"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -63,7 +92,9 @@ const Dashboard = () => {
               <CardTitle>Active Orders</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">3</p>
+              <p className="text-3xl font-bold">
+                {orders?.filter((o) => o.status === "pending").length || 0}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -71,7 +102,9 @@ const Dashboard = () => {
               <CardTitle>Completed This Month</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">12</p>
+              <p className="text-3xl font-bold">
+                {orders?.filter((o) => o.status === "completed").length || 0}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -79,7 +112,9 @@ const Dashboard = () => {
               <CardTitle>Upcoming Deliveries</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">5</p>
+              <p className="text-3xl font-bold">
+                {orders?.filter((o) => o.due_date).length || 0}
+              </p>
             </CardContent>
           </Card>
         </div>

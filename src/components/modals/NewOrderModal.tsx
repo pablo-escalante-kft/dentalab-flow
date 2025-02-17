@@ -9,6 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FileUp, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 const steps = [
   {
@@ -31,11 +38,99 @@ const steps = [
 ];
 
 const NewOrderModal = () => {
+  const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Form state
+  const [formData, setFormData] = useState({
+    patientFirstName: "",
+    patientLastName: "",
+    patientEmail: "",
+    patientPhone: "",
+    notes: "",
+    files: [] as File[],
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFormData((prev) => ({
+        ...prev,
+        files: [...Array.from(e.target.files || [])],
+      }));
+    }
+  };
+
+  const resetForm = () => {
+    setCurrentStep(0);
+    setSelectedType(null);
+    setFormData({
+      patientFirstName: "",
+      patientLastName: "",
+      patientEmail: "",
+      patientPhone: "",
+      notes: "",
+      files: [],
+    });
+    setOpen(false);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setIsLoading(true);
+
+      // First, create the patient
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .insert({
+          first_name: formData.patientFirstName,
+          last_name: formData.patientLastName,
+          email: formData.patientEmail,
+          phone: formData.patientPhone,
+          dentist_id: (await supabase.auth.getUser()).data.user?.id,
+        })
+        .select()
+        .single();
+
+      if (patientError) throw patientError;
+
+      // Then create the order
+      const { error: orderError } = await supabase.from("orders").insert({
+        type: selectedType!,
+        patient_id: patientData.id,
+        dentist_id: (await supabase.auth.getUser()).data.user?.id,
+        details: {
+          notes: formData.notes,
+        },
+      });
+
+      if (orderError) throw orderError;
+
+      toast({
+        title: "Order created successfully",
+        description: "Your order has been submitted.",
+      });
+
+      // Refresh the orders list
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      
+      resetForm();
+    } catch (error: any) {
+      toast({
+        title: "Error creating order",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="lg" className="flex items-center gap-2 h-auto py-4">
           New Order
@@ -89,7 +184,143 @@ const NewOrderModal = () => {
                 ))}
               </div>
             )}
-            {/* Add other step content here */}
+
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={formData.patientFirstName}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          patientFirstName: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={formData.patientLastName}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          patientLastName: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.patientEmail}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        patientEmail: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.patientPhone}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        patientPhone: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Additional Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                  <FileUp className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="mt-4">
+                    <input
+                      type="file"
+                      id="files"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <Label htmlFor="files">
+                      <Button as="span">Choose Files</Button>
+                    </Label>
+                    <p className="mt-2 text-sm text-gray-500">
+                      or drag and drop your files here
+                    </p>
+                  </div>
+                </div>
+                {formData.files.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Selected Files:</h4>
+                    <ul className="space-y-2">
+                      {formData.files.map((file, index) => (
+                        <li
+                          key={index}
+                          className="text-sm text-gray-600 flex items-center gap-2"
+                        >
+                          <FileUp className="h-4 w-4" />
+                          {file.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="rounded-lg border p-4">
+                  <h3 className="font-medium mb-2">Order Summary</h3>
+                  <dl className="space-y-2">
+                    <div className="flex justify-between">
+                      <dt className="text-gray-600">Type:</dt>
+                      <dd className="font-medium">{selectedType}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-600">Patient:</dt>
+                      <dd className="font-medium">
+                        {formData.patientFirstName} {formData.patientLastName}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-600">Files:</dt>
+                      <dd className="font-medium">{formData.files.length} files</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -102,11 +333,21 @@ const NewOrderModal = () => {
               Previous
             </Button>
             <Button
-              onClick={() =>
-                setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1))
+              onClick={() => {
+                if (currentStep === steps.length - 1) {
+                  handleSubmit();
+                } else {
+                  setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1));
+                }
+              }}
+              disabled={
+                (currentStep === 0 && !selectedType) ||
+                (currentStep === 1 &&
+                  (!formData.patientFirstName || !formData.patientLastName)) ||
+                isLoading
               }
-              disabled={currentStep === 0 && !selectedType}
             >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {currentStep === steps.length - 1 ? "Submit Order" : "Next"}
             </Button>
           </div>

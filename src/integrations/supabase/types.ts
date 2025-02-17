@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       orders: {
         Row: {
+          additional_info: string | null
           created_at: string
           dentist_id: string
           details: Json | null
@@ -21,6 +22,7 @@ export type Database = {
           type: string
         }
         Insert: {
+          additional_info?: string | null
           created_at?: string
           dentist_id: string
           details?: Json | null
@@ -31,6 +33,7 @@ export type Database = {
           type: string
         }
         Update: {
+          additional_info?: string | null
           created_at?: string
           dentist_id?: string
           details?: Json | null
