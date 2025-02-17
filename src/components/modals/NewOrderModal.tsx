@@ -1,4 +1,3 @@
-
 import {
   Dialog,
   DialogContent,
@@ -45,7 +44,6 @@ const NewOrderModal = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Form state
   const [formData, setFormData] = useState({
     patientFirstName: "",
     patientLastName: "",
@@ -82,7 +80,25 @@ const NewOrderModal = () => {
     try {
       setIsLoading(true);
 
-      // First, create the patient
+      const { data: { user }, error: sessionError } = await supabase.auth.getUser();
+      
+      if (sessionError || !user) {
+        throw new Error('Please sign in again to continue');
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileData && !profileError) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          full_name: user.user_metadata.full_name
+        });
+      }
+
       const { data: patientData, error: patientError } = await supabase
         .from("patients")
         .insert({
@@ -90,18 +106,17 @@ const NewOrderModal = () => {
           last_name: formData.patientLastName,
           email: formData.patientEmail,
           phone: formData.patientPhone,
-          dentist_id: (await supabase.auth.getUser()).data.user?.id,
+          dentist_id: user.id,
         })
         .select()
         .single();
 
       if (patientError) throw patientError;
 
-      // Then create the order
       const { error: orderError } = await supabase.from("orders").insert({
         type: selectedType!,
         patient_id: patientData.id,
-        dentist_id: (await supabase.auth.getUser()).data.user?.id,
+        dentist_id: user.id,
         details: {
           notes: formData.notes,
         },
@@ -114,7 +129,6 @@ const NewOrderModal = () => {
         description: "Your order has been submitted.",
       });
 
-      // Refresh the orders list
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       
       resetForm();
@@ -141,7 +155,6 @@ const NewOrderModal = () => {
           <DialogTitle>New Order - {steps[currentStep].title}</DialogTitle>
         </DialogHeader>
         <div className="mt-4">
-          {/* Progress Steps */}
           <div className="flex justify-between mb-8">
             {steps.map((step, index) => (
               <div
@@ -168,7 +181,6 @@ const NewOrderModal = () => {
             ))}
           </div>
 
-          {/* Step Content */}
           <div className="min-h-[300px]">
             {currentStep === 0 && (
               <div className="grid grid-cols-2 gap-4">
@@ -271,8 +283,11 @@ const NewOrderModal = () => {
                       className="hidden"
                       onChange={handleFileChange}
                     />
-                    <Label htmlFor="files">
-                      <Button as="span">Choose Files</Button>
+                    <Label
+                      htmlFor="files"
+                      className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                    >
+                      Choose Files
                     </Label>
                     <p className="mt-2 text-sm text-gray-500">
                       or drag and drop your files here
@@ -323,7 +338,6 @@ const NewOrderModal = () => {
             )}
           </div>
 
-          {/* Navigation */}
           <div className="flex justify-between mt-6">
             <Button
               variant="outline"
