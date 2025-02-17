@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileUp, Plus } from "lucide-react";
+import { FileUp, Plus, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const OrdersPage = () => {
@@ -63,6 +63,7 @@ const OrdersPage = () => {
                 <TableHead>Status</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Created At</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -85,6 +86,18 @@ const OrdersPage = () => {
                   </TableCell>
                   <TableCell>
                     {new Date(order.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className="hover:bg-transparent"
+                    >
+                      <Link to={`/dashboard/orders/${order.id}`}>
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
