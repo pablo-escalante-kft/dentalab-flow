@@ -1,3 +1,4 @@
+
 import {
   Dialog,
   DialogContent,
@@ -86,19 +87,31 @@ const NewOrderModal = () => {
         throw new Error('Please sign in again to continue');
       }
 
+      // Check if profile exists using maybeSingle()
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profileData && !profileError) {
-        await supabase.from('profiles').insert({
-          id: user.id,
-          full_name: user.user_metadata.full_name
-        });
+      if (profileError) throw profileError;
+
+      // If profile doesn't exist, create it
+      if (!profileData) {
+        const { error: createProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata.full_name
+          });
+
+        if (createProfileError) throw createProfileError;
+        
+        // Wait a moment for the profile to be created
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
+      // Now create the patient
       const { data: patientData, error: patientError } = await supabase
         .from("patients")
         .insert({
@@ -113,14 +126,17 @@ const NewOrderModal = () => {
 
       if (patientError) throw patientError;
 
-      const { error: orderError } = await supabase.from("orders").insert({
-        type: selectedType!,
-        patient_id: patientData.id,
-        dentist_id: user.id,
-        details: {
-          notes: formData.notes,
-        },
-      });
+      // Create the order
+      const { error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          type: selectedType!,
+          patient_id: patientData.id,
+          dentist_id: user.id,
+          details: {
+            notes: formData.notes,
+          },
+        });
 
       if (orderError) throw orderError;
 
@@ -133,6 +149,7 @@ const NewOrderModal = () => {
       
       resetForm();
     } catch (error: any) {
+      console.error('Error creating order:', error);
       toast({
         title: "Error creating order",
         description: error.message,
