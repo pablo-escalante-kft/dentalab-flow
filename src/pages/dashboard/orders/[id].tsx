@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Calendar, Clock, Download, Printer } from "lucide-react";
 import { format } from "date-fns";
-import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,6 +41,55 @@ const OrderDetailsPage = () => {
       return data;
     },
   });
+
+  const handleExport = () => {
+    if (!order) return;
+
+    // Create export data
+    const exportData = {
+      orderId: order.id,
+      type: order.type,
+      status: order.status,
+      createdAt: format(new Date(order.created_at), "PPP"),
+      dueDate: order.due_date ? format(new Date(order.due_date), "PPP") : "Not set",
+      patient: {
+        name: `${order.patient.first_name} ${order.patient.last_name}`,
+        email: order.patient.email || "Not provided",
+        phone: order.patient.phone || "Not provided",
+        dateOfBirth: order.patient.date_of_birth
+          ? format(new Date(order.patient.date_of_birth), "PPP")
+          : "Not provided",
+      },
+      additionalInfo: order.additional_info || "No additional information provided.",
+      scans: order.scans?.map(scan => ({
+        filePath: scan.file_path,
+        uploadedAt: format(new Date(scan.uploaded_at), "PPP"),
+      })) || [],
+    };
+
+    // Convert to JSON string
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    // Create blob and download link
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `order-${order.id.slice(0, 8)}.json`;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export successful",
+      description: "Order details have been exported successfully.",
+    });
+  };
 
   if (isLoading) {
     return (
@@ -80,7 +128,7 @@ const OrderDetailsPage = () => {
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
