@@ -11,6 +11,24 @@ import { Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+const OrderSteps = {
+  pending: 1,
+  "in-progress": 2,
+  "under-review": 3,
+  completed: 4,
+  cancelled: -1,
+} as const;
+
+const OrderStepLabels = {
+  pending: "Pending",
+  "in-progress": "In Progress",
+  "under-review": "Under Review",
+  completed: "Completed",
+  cancelled: "Cancelled",
+} as const;
 
 const OrderDetailsPage = () => {
   const { id } = useParams();
@@ -45,49 +63,66 @@ const OrderDetailsPage = () => {
   const handleExport = () => {
     if (!order) return;
 
-    // Create export data
-    const exportData = {
-      orderId: order.id,
-      type: order.type,
-      status: order.status,
-      createdAt: format(new Date(order.created_at), "PPP"),
-      dueDate: order.due_date ? format(new Date(order.due_date), "PPP") : "Not set",
-      patient: {
-        name: `${order.patient.first_name} ${order.patient.last_name}`,
-        email: order.patient.email || "Not provided",
-        phone: order.patient.phone || "Not provided",
-        dateOfBirth: order.patient.date_of_birth
-          ? format(new Date(order.patient.date_of_birth), "PPP")
-          : "Not provided",
-      },
-      additionalInfo: order.additional_info || "No additional information provided.",
-      scans: order.scans?.map(scan => ({
-        filePath: scan.file_path,
-        uploadedAt: format(new Date(scan.uploaded_at), "PPP"),
-      })) || [],
-    };
+    const pdf = new jsPDF();
+    
+    // Add title
+    pdf.setFontSize(20);
+    pdf.text(`Order Details - #${order.id.slice(0, 8)}`, 20, 20);
+    
+    // Add order information
+    pdf.setFontSize(12);
+    autoTable(pdf, {
+      head: [['Order Information']],
+      body: [
+        ['Type', order.type],
+        ['Status', OrderStepLabels[order.status as keyof typeof OrderStepLabels]],
+        ['Created At', format(new Date(order.created_at), "PPP pp")],
+        ['Due Date', order.due_date ? format(new Date(order.due_date), "PPP") : "Not set"],
+      ],
+      startY: 30,
+      theme: 'striped',
+    });
 
-    // Convert to JSON string
-    const jsonString = JSON.stringify(exportData, null, 2);
-    
-    // Create blob and download link
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `order-${order.id.slice(0, 8)}.json`;
-    
-    // Trigger download
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    // Add patient information
+    autoTable(pdf, {
+      head: [['Patient Information']],
+      body: [
+        ['Name', `${order.patient.first_name} ${order.patient.last_name}`],
+        ['Email', order.patient.email || 'Not provided'],
+        ['Phone', order.patient.phone || 'Not provided'],
+        ['Date of Birth', order.patient.date_of_birth ? format(new Date(order.patient.date_of_birth), "PPP") : 'Not provided'],
+      ],
+      startY: pdf.lastAutoTable.finalY + 10,
+      theme: 'striped',
+    });
+
+    // Add additional information
+    autoTable(pdf, {
+      head: [['Additional Information']],
+      body: [[order.additional_info || 'No additional information provided.']],
+      startY: pdf.lastAutoTable.finalY + 10,
+      theme: 'striped',
+    });
+
+    // Add scans if any
+    if (order.scans && order.scans.length > 0) {
+      autoTable(pdf, {
+        head: [['Scan File', 'Uploaded At']],
+        body: order.scans.map(scan => [
+          scan.file_path,
+          format(new Date(scan.uploaded_at), "PPP pp")
+        ]),
+        startY: pdf.lastAutoTable.finalY + 10,
+        theme: 'striped',
+      });
+    }
+
+    // Save PDF
+    pdf.save(`order-${order.id.slice(0, 8)}.pdf`);
 
     toast({
       title: "Export successful",
-      description: "Order details have been exported successfully.",
+      description: "Order details have been exported as PDF.",
     });
   };
 
@@ -111,6 +146,8 @@ const OrderDetailsPage = () => {
     );
   }
 
+  const currentStep = OrderSteps[order.status as keyof typeof OrderSteps];
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-8">
@@ -130,10 +167,65 @@ const OrderDetailsPage = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
-              Export
+              Export PDF
             </Button>
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <div className="absolute top-4 w-full h-1 bg-gray-200">
+                <div 
+                  className="absolute h-full bg-primary transition-all"
+                  style={{ 
+                    width: `${Math.max(0, Math.min(100, (currentStep / 4) * 100))}%`,
+                    display: order.status === 'cancelled' ? 'none' : 'block'
+                  }}
+                />
+              </div>
+              <div className="relative flex justify-between">
+                {Object.entries(OrderStepLabels).map(([key, label], index) => {
+                  if (key === 'cancelled') return null;
+                  const stepNumber = OrderSteps[key as keyof typeof OrderSteps];
+                  const isActive = currentStep >= stepNumber;
+                  const isCurrent = currentStep === stepNumber;
+                  
+                  return (
+                    <div key={key} className="flex flex-col items-center">
+                      <div 
+                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          isActive 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-gray-200 text-gray-500'
+                        } ${
+                          isCurrent 
+                            ? 'ring-4 ring-primary/30' 
+                            : ''
+                        }`}
+                      >
+                        {stepNumber}
+                      </div>
+                      <span className={`mt-2 text-sm ${
+                        isActive ? 'text-primary font-medium' : 'text-gray-500'
+                      }`}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {order.status === 'cancelled' && (
+              <div className="mt-8 p-4 bg-destructive/10 text-destructive rounded-lg">
+                <p className="text-center font-medium">This order has been cancelled</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -151,7 +243,7 @@ const OrderDetailsPage = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <p className="capitalize">{order.status}</p>
+                <p className="capitalize">{OrderStepLabels[order.status as keyof typeof OrderStepLabels]}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Created At</p>
